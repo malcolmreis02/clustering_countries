@@ -1,0 +1,145 @@
+---
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+```{r warning=F}
+library(readr)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(magrittr)
+library(ggdendro)
+library(GGally)
+library(tidyr)
+```
+
+```{r lendo_banco}
+data <- read_csv("Country-data.csv")
+dic <- read_csv("data-dictionary.csv")
+kable(dic)
+```
+
+Dividir os países de acordo com o quanto eles conversam com outros países: importação e exportação
+
+```{r grafico de pares}
+ggpairs(data %>% select(exports, imports), progress = F) +
+  theme_bw()
+```
+```{r clustering}
+IE <- data %>% select(exports, imports)
+IE <- unique(IE) # transformando numa lista
+cluster <- hclust(dist(IE), method = "complete")
+```
+
+```{r elbow}
+h <- seq(5, 150, by = 1) # definindo o espa
+N <- nrow(IE)
+
+
+totalVar <- rep(0, length(h))
+K <- numeric(length(h))
+Y <- with(IE, cbind(imports, exports))
+
+for(i in seq_along(h)){
+  groups <- factor(cutree(cluster, h = h[i]))
+  K[i] <- length(levels(groups))
+  s.manova <- summary(manova(Y ~ groups), tol = 0)
+  
+  B <- s.manova$SS$groups
+  W <- s.manova$SS$Residuals
+  
+  totalVar[i] <- det(B)/(det(B+W))
+}
+
+data.frame(totalVar, K) %>%
+  ggplot() +
+  geom_point(aes(x = K, y = totalVar)) +
+  geom_vline(xintercept = 6, col = "red") +
+  theme_classic() +
+  labs(title = "Metodo de Elbow",
+       y = "Variancia Total")
+```
+
+
+```{r dendro}
+ggdendrogram(cluster) +
+  geom_hline(yintercept = h[which.max(K==6)], col = "red") +
+  labs(title = "Dendograma do Cluster")
+```
+```{r grupos}
+groups <- cutree(cluster, h = h[which.max(K==6)])
+data.frame(IE, groups) %>%
+  ggplot(aes(x = imports, y = exports, col = as.factor(groups))) +
+  geom_point(size = 2.5) + theme_classic() +
+  labs(col = "groups")
+```
+Brasil ta no terceiro grupo, junto com Argentin, Australia, Canada, China, Colombia, India, França (Todos os países do BRICS), Estados Unidos, Venezuela.
+
+```{r amigos_br}
+data.frame(data, groups) %>%
+  filter(groups == 4)
+```
+
+# Tentativa de modela (nao deu certo por causa da normalidade e independencia dos residuos)
+
+```{r pares_pibpercap}
+ggpairs(data %>% select(income, exports, imports), upper = "blank") +
+  theme_bw()
+```
+
+```{r modelo}
+fit1 <- lm(income ~ exports + imports, data = (data.frame(data, groups) %>% filter(groups == 3)))
+summary(fit1)
+anova(fit1)
+```
+
+```{r analise_residual, eval=FALSE, include=FALSE}
+(data.frame(data, groups) %>% 
+  filter(groups == 3)) %>%
+  ggplot(aes(x = imports, y = fit1$residuals)) +
+  geom_point(col = "blue") + geom_abline(slope = 0, col = "red")
+
+(data.frame(data, groups) %>% 
+  filter(groups == 3)) %>%
+  ggplot(aes(x = exports, y = fit1$residuals)) +
+  geom_point(col = "blue") + geom_abline(slope = 0, col = "red")
+
+plot(density(fit1$residuals))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
