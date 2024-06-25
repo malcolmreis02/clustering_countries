@@ -58,15 +58,15 @@ data.frame(totalVar, K) %>%
   geom_point(aes(x = K, y = totalVar)) +
   geom_vline(xintercept = 6, col = "red") +
   theme_classic() +
-  labs(title = "Metodo de Elbow",
-       y = "Variancia Total")
+  labs(title = "Elbow Method",
+       y = "Total Variance")
 ```
 
 
 ```{r dendro}
 ggdendrogram(cluster) +
   geom_hline(yintercept = h[which.max(K==6)], col = "red") +
-  labs(title = "Dendograma do Cluster")
+  labs(title = "Cluster's Dendrogram")
 ```
 ```{r grupos}
 groups <- cutree(cluster, h = h[which.max(K==6)])
